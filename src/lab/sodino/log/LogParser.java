@@ -6,7 +6,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 /**
  * @author Sodino E-mail:sodino@qq.com
@@ -17,38 +22,49 @@ public class LogParser {
 	/**文件的行数.*/
 	private int lineNumber;
 	private static String PRE = "param_FailCode=";
+	private RandomAccessFile raFos = null;
+	
 	public void parse(String path) {
 		if(path == null){
-			System.out.println("path[" + path +"] is null.");
+			logCat("path[" + path +"] is null.");
 			return;
 		}
-		
 		File file = new File(path);
 		if(file.exists() == false){
-			System.out.println("path[" +path +"] does't exist.");
+			logCat("path[" +path +"] does't exist.");
 			return;
 		}
 		
+		setInputPath(file);
 		checkCode(file);
 		int size = arrCode.size();
 		for (int i = 0; i < size; i++) {
 			filter(file, arrCode.get(i));
-			System.out.println("-------->end<--------\n");
+			logCat("-------->end<--------\n");
 		}
+		
+		if(raFos != null){
+			try {
+				raFos.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
 	}
 	
 	private void filter(File file, String code){
 		BufferedReader br = null;
 		int lineCount = 0;
 		String key = PRE + code;
-		System.out.println(key);
+		logCat(key);
 		try{
 			br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "gbk"));
 			String line = "";
 			while ((line = br.readLine()) != null) {
 				if(line.contains(key)){
 					lineCount ++;
-					System.out.println(line);
+					logCat(line);
 				}
 			}
 		} catch (FileNotFoundException fnfe) {
@@ -64,7 +80,7 @@ public class LogParser {
 				}
 			}
 		}
-		System.out.println("amount:" + lineCount+" percent:" + (lineCount * 1.0f / this.lineNumber));
+		logCat("amount:" + lineCount+" percent:" + (lineCount * 1.0f / this.lineNumber));
 	}
 
 	private void checkCode(File file) {
@@ -72,7 +88,7 @@ public class LogParser {
 		try{
 			br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "gbk"));
 			String line = "";
-			while((line = br.readLine()) != null){
+			while ((line = br.readLine()) != null) {
 				lineNumber ++;
 				int idx = line.indexOf(PRE);
 				if(idx > -1){
@@ -96,6 +112,39 @@ public class LogParser {
 					e.printStackTrace();
 				}
 			}
+		}
+	}
+	
+	public void setInputPath(File fileInput) {
+		if(fileInput == null){
+			return;
+		}
+		Date date = new Date();
+        DateFormat dateFormat = new SimpleDateFormat("hh_mm_ss");
+        String subfix = "_"+dateFormat.format(date) + ".txt";
+		File fileOutput = new File(fileInput.getParentFile().getAbsolutePath()+File.separator+(fileInput.getName().replace(".txt", subfix)));
+		if(fileOutput.exists()){
+			fileOutput.delete();
+		}
+		try {
+			fileOutput.createNewFile();
+			raFos = new RandomAccessFile(fileOutput, "rw");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void logCat(String content){
+		if(content == null){
+			return;
+		}
+		System.out.println(content);
+		try {
+			raFos.write((content + "\n").getBytes("utf-8"));
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 }
